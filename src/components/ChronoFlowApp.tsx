@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useTransition, useEffect } from 'react';
-import { addTimelineAction } from '@/lib/actions';
+import { addTimelineAction, addNoteAction } from '@/lib/actions';
 import type { TimelineHydrated, NoteHydrated } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2 } from 'lucide-react';
@@ -34,27 +34,25 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
   const handleAddTimeline = () => {
     const nextNumber = timelines.length > 0 ? Math.max(...timelines.map(t => t.number)) + 1 : 1;
     
-    // Optimistic UI update
+    const optimisticId = `optimistic-${Date.now()}`;
     const optimisticTimeline: TimelineHydrated = {
-      id: `optimistic-${Date.now()}`,
+      id: optimisticId,
       number: nextNumber,
       createdAt: new Date().toISOString(),
     };
-    setTimelines(currentTimelines => [...currentTimelines, optimisticTimeline]);
+    setTimelines(currentTimelines => [...currentTimelines, optimisticTimeline].sort((a, b) => a.number - b.number));
 
     startTransition(async () => {
       const result = await addTimelineAction();
       if (result?.success && result.newTimeline) {
-         // Replace optimistic with real data
          setTimelines(currentTimelines => 
-            currentTimelines.map(t => t.id === optimisticTimeline.id ? result.newTimeline! : t)
+            currentTimelines.map(t => t.id === optimisticId ? result.newTimeline! : t)
          );
       } else {
-        // Rollback on error
-        setTimelines(currentTimelines => currentTimelines.filter(t => t.id !== optimisticTimeline.id));
+        setTimelines(currentTimelines => currentTimelines.filter(t => t.id !== optimisticId));
         toast({
           title: "Erro",
-          description: result.error,
+          description: result.error || "Falha ao adicionar linha.",
           variant: "destructive",
         });
       }
@@ -73,14 +71,24 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
     setDialogOpen(true);
   };
   
-  const onNoteAdded = (newNote: NoteHydrated) => {
-    setNotes(currentNotes => [...currentNotes, newNote]);
-  }
-  
-  const onNoteSaved = (savedNote: NoteHydrated) => {
-    setNotes(currentNotes =>
-      currentNotes.map(n => n.id === savedNote.id ? { ...n, ...savedNote, id: savedNote.id } : n)
-    );
+  const handleNoteAdded = async (optimisticNote: NoteHydrated, optimisticId: string) => {
+    setNotes(currentNotes => [...currentNotes, optimisticNote]);
+
+    const formData = new FormData();
+    formData.append('title', optimisticNote.title);
+    formData.append('content', optimisticNote.content);
+    formData.append('lineId', optimisticNote.lineId);
+
+    const result = await addNoteAction(formData);
+
+    if (result.success && result.newNote) {
+      setNotes(currentNotes =>
+        currentNotes.map(n => n.id === optimisticId ? result.newNote! : n)
+      );
+    } else {
+      setNotes(currentNotes => currentNotes.filter(n => n.id !== optimisticId));
+      // Toast já é mostrado no AddNoteDialog
+    }
   };
 
 
@@ -120,8 +128,7 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
         isOpen={isDialogOpen}
         setOpen={setDialogOpen}
         timelines={timelines}
-        onNoteAdded={onNoteAdded}
-        onNoteSaved={onNoteSaved}
+        onNoteAdded={handleNoteAdded}
       />
     </>
   );

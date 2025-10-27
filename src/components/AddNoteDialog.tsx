@@ -20,8 +20,7 @@ interface AddNoteDialogProps {
   isOpen: boolean;
   setOpen: (open: boolean) => void;
   timelines: TimelineHydrated[];
-  onNoteAdded: (note: NoteHydrated) => void;
-  onNoteSaved: (note: NoteHydrated) => void;
+  onNoteAdded: (note: NoteHydrated, optimisticId: string) => void;
 }
 
 const noteFormSchema = z.object({
@@ -32,7 +31,7 @@ const noteFormSchema = z.object({
 
 type NoteFormValues = z.infer<typeof noteFormSchema>;
 
-export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded, onNoteSaved }: AddNoteDialogProps) {
+export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded }: AddNoteDialogProps) {
   const [isPending, startTransition] = useTransition();
   const [isGeneratingTitle, startTitleGeneration] = useTransition();
   const { toast } = useToast();
@@ -65,7 +64,8 @@ export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded,
       content: data.content,
       lineId: data.lineId,
     };
-    onNoteAdded(optimisticNote);
+    // Pass the real note back to the parent to replace the optimistic one
+    onNoteAdded(optimisticNote, optimisticId);
     setOpen(false);
       
     startTransition(async () => {
@@ -78,11 +78,11 @@ export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded,
 
       if (result?.success && result.newNote) {
         toast({ title: 'Sucesso!', description: 'Sua anotação foi salva.' });
-        onNoteSaved({ ...result.newNote, id: optimisticId });
+        // The parent component handles the replacement
       } else {
         const errorMsg = result.errors ? Object.values(result.errors).join(', ') : result.error;
         toast({ title: 'Erro!', description: errorMsg || 'Falha ao salvar a anotação.', variant: 'destructive' });
-        // Rollback would be needed here if we don't reload
+        // The parent component should handle the rollback
       }
     });
   };

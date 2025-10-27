@@ -21,8 +21,6 @@ export async function addTimelineAction() {
       createdAt: serverTimestamp(),
     });
     
-    // To avoid waiting for serverTimestamp, we fetch the doc again.
-    // In a real app, you might get this from a client-side listener for better UX.
     const newDoc = await getDoc(docRef);
     const data = newDoc.data() as Timeline;
     const createdAt = data.createdAt as Timestamp;
@@ -33,7 +31,7 @@ export async function addTimelineAction() {
         createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
     };
 
-    revalidatePath('/');
+    // revalidatePath('/'); // Removido para melhorar a performance
     return { success: true, newTimeline };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
@@ -71,16 +69,20 @@ export async function addNoteAction(formData: FormData) {
             lineId,
             createdAt: serverTimestamp(),
         });
+        
+        const newDoc = await getDoc(docRef);
+        const data = newDoc.data() as Note;
+        const createdAt = data.createdAt as Timestamp;
 
         const newNote: NoteHydrated = {
-            id: docRef.id,
+            id: newDoc.id,
             title,
             content,
             lineId,
-            createdAt: new Date().toISOString(), // Use client-side timestamp for optimistic response
+            createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
         };
 
-        revalidatePath('/');
+        // revalidatePath('/'); // Removido para melhorar a performance
         return { success: true, newNote };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
