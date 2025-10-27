@@ -48,9 +48,10 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
       const result = await addTimelineAction();
 
       if (result?.success && result.newTimeline) {
-         setTimelines(currentTimelines => 
-            currentTimelines.map(t => t.id === optimisticId ? result.newTimeline! : t)
-         );
+         setTimelines(currentTimelines => {
+            const newTimelines = currentTimelines.map(t => t.id === optimisticId ? result.newTimeline! : t);
+            return newTimelines.sort((a, b) => a.number - b.number);
+         });
          toast({ title: 'Sucesso!', description: 'Nova linha adicionada.' });
       } else {
         setTimelines(currentTimelines => currentTimelines.filter(t => t.id !== optimisticId));
@@ -85,6 +86,7 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
       };
       
       setNotes(currentNotes => [...currentNotes, optimisticNote]);
+      setDialogOpen(false);
 
       const formData = new FormData();
       formData.append('title', noteData.title);

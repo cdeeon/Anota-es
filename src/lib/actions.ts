@@ -13,24 +13,28 @@ export async function addTimelineAction() {
     const timelinesCollection = collection(db, 'timelines');
     const q = query(timelinesCollection, orderBy('number', 'desc'));
     const querySnapshot = await getDocs(q);
-    const lastTimeline = querySnapshot.docs[0]?.data();
+    const lastTimelineDoc = querySnapshot.docs[0];
+    const lastTimeline = lastTimelineDoc?.data();
     const newNumber = lastTimeline ? lastTimeline.number + 1 : 1;
 
-    const docRef = await addDoc(timelinesCollection, {
+    const newTimelineData = {
       number: newNumber,
       createdAt: serverTimestamp(),
-    });
+    };
+
+    const docRef = await addDoc(timelinesCollection, newTimelineData);
     
     const newDoc = await getDoc(docRef);
-    const data = newDoc.data() as Timeline;
-    const createdAt = data.createdAt as Timestamp;
+    const data = newDoc.data();
+    const createdAt = data!.createdAt as Timestamp;
     
     const newTimeline: TimelineHydrated = {
-        ...data,
+        number: data!.number,
         id: newDoc.id,
         createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
     };
 
+    revalidatePath('/');
     return { success: true, newTimeline };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
@@ -80,7 +84,8 @@ export async function addNoteAction(formData: FormData) {
             lineId,
             createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
         };
-
+        
+        revalidatePath('/');
         return { success: true, newNote };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
