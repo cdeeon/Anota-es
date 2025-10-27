@@ -21,6 +21,7 @@ interface AddNoteDialogProps {
   setOpen: (open: boolean) => void;
   timelines: TimelineHydrated[];
   onNoteAdded: (note: Omit<NoteHydrated, 'id' | 'createdAt'>) => void;
+  isSaving: boolean;
 }
 
 const noteFormSchema = z.object({
@@ -31,8 +32,7 @@ const noteFormSchema = z.object({
 
 export type NoteFormValues = z.infer<typeof noteFormSchema>;
 
-export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded }: AddNoteDialogProps) {
-  const [isPending, startTransition] = useTransition();
+export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded, isSaving }: AddNoteDialogProps) {
   const [isGeneratingTitle, startTitleGeneration] = useTransition();
   const { toast } = useToast();
 
@@ -62,7 +62,6 @@ export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded 
       lineId: data.lineId,
     });
     setOpen(false);
-    toast({ title: 'Sucesso!', description: 'Sua anotação foi salva.' });
   };
 
   const handleGenerateTitle = () => {
@@ -183,8 +182,8 @@ export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded 
             />
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={isSaving}>
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Salvar Anotação
               </Button>
             </DialogFooter>

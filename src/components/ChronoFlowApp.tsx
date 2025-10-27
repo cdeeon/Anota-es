@@ -15,7 +15,8 @@ interface ChronoFlowAppProps {
 }
 
 export default function ChronoFlowApp({ initialTimelines, initialNotes }: ChronoFlowAppProps) {
-  const [isPending, startTransition] = useTransition();
+  const [isAddingTimeline, startTimelineTransition] = useTransition();
+  const [isAddingNote, startNoteTransition] = useTransition();
   const [isDialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
 
@@ -32,18 +33,20 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
 
 
   const handleAddTimeline = () => {
-    const nextNumber = timelines.length > 0 ? Math.max(...timelines.map(t => t.number)) + 1 : 1;
-    
-    const optimisticId = `optimistic-${Date.now()}`;
-    const optimisticTimeline: TimelineHydrated = {
-      id: optimisticId,
-      number: nextNumber,
-      createdAt: new Date().toISOString(),
-    };
-    setTimelines(currentTimelines => [...currentTimelines, optimisticTimeline].sort((a, b) => a.number - b.number));
+    startTimelineTransition(async () => {
+      const nextNumber = timelines.length > 0 ? Math.max(...timelines.map(t => t.number)) + 1 : 1;
+      
+      const optimisticId = `optimistic-timeline-${Date.now()}`;
+      const optimisticTimeline: TimelineHydrated = {
+        id: optimisticId,
+        number: nextNumber,
+        createdAt: new Date().toISOString(),
+      };
+      
+      setTimelines(currentTimelines => [...currentTimelines, optimisticTimeline].sort((a, b) => a.number - b.number));
 
-    startTransition(async () => {
       const result = await addTimelineAction();
+
       if (result?.success && result.newTimeline) {
          setTimelines(currentTimelines => 
             currentTimelines.map(t => t.id === optimisticId ? result.newTimeline! : t)
@@ -72,15 +75,16 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
   };
   
   const handleNoteAdded = (noteData: Omit<NoteHydrated, 'id' | 'createdAt'>) => {
-    const optimisticId = `optimistic-${Date.now()}`;
-    const optimisticNote: NoteHydrated = {
-      id: optimisticId,
-      createdAt: new Date().toISOString(),
-      ...noteData,
-    };
-    setNotes(currentNotes => [...currentNotes, optimisticNote]);
+    startNoteTransition(async () => {
+      const optimisticId = `optimistic-note-${Date.now()}`;
+      const optimisticNote: NoteHydrated = {
+        id: optimisticId,
+        createdAt: new Date().toISOString(),
+        ...noteData,
+      };
+      
+      setNotes(currentNotes => [...currentNotes, optimisticNote]);
 
-    startTransition(async () => {
       const formData = new FormData();
       formData.append('title', noteData.title);
       formData.append('content', noteData.content);
@@ -90,8 +94,9 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
 
       if (result.success && result.newNote) {
         setNotes(currentNotes =>
-          currentNotes.map(n => n.id === optimisticId ? result.newNote! : n)
+          currentNotes.map(n => (n.id === optimisticId ? result.newNote! : n))
         );
+         toast({ title: 'Sucesso!', description: 'Sua anotação foi salva.' });
       } else {
         setNotes(currentNotes => currentNotes.filter(n => n.id !== optimisticId));
         const errorMsg = result.errors ? Object.values(result.errors).join(', ') : result.error;
@@ -104,8 +109,8 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
   return (
     <>
       <div className="flex justify-center gap-4 mb-10">
-        <Button onClick={handleAddTimeline} disabled={isPending} className="shadow-lg" size="lg">
-          {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+        <Button onClick={handleAddTimeline} disabled={isAddingTimeline} className="shadow-lg" size="lg">
+          {isAddingTimeline ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
           Nova Linha
         </Button>
         <Button onClick={handleOpenDialog} variant="secondary" className="shadow-lg" size="lg">
@@ -138,6 +143,7 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
         setOpen={setDialogOpen}
         timelines={timelines}
         onNoteAdded={handleNoteAdded}
+        isSaving={isAddingNote}
       />
     </>
   );
