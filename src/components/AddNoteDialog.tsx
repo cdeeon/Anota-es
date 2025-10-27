@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
-import { addNoteAction, generateTitleAction } from '@/lib/actions';
+import { generateTitleAction } from '@/lib/actions';
 import type { TimelineHydrated, NoteHydrated } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,7 +20,7 @@ interface AddNoteDialogProps {
   isOpen: boolean;
   setOpen: (open: boolean) => void;
   timelines: TimelineHydrated[];
-  onNoteAdded: (note: NoteHydrated, optimisticId: string) => void;
+  onNoteAdded: (note: Omit<NoteHydrated, 'id' | 'createdAt'>) => void;
 }
 
 const noteFormSchema = z.object({
@@ -29,7 +29,7 @@ const noteFormSchema = z.object({
   lineId: z.string({ required_error: 'Selecione uma linha do tempo.' }),
 });
 
-type NoteFormValues = z.infer<typeof noteFormSchema>;
+export type NoteFormValues = z.infer<typeof noteFormSchema>;
 
 export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded }: AddNoteDialogProps) {
   const [isPending, startTransition] = useTransition();
@@ -56,35 +56,13 @@ export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded 
   }, [isOpen, form, timelines]);
   
   const onSubmit = (data: NoteFormValues) => {
-    const optimisticId = `optimistic-${Date.now()}`;
-    const optimisticNote: NoteHydrated = {
-      id: optimisticId,
-      createdAt: new Date().toISOString(),
+    onNoteAdded({
       title: data.title,
       content: data.content,
       lineId: data.lineId,
-    };
-    // Pass the real note back to the parent to replace the optimistic one
-    onNoteAdded(optimisticNote, optimisticId);
-    setOpen(false);
-      
-    startTransition(async () => {
-      const formData = new FormData();
-      formData.append('title', data.title);
-      formData.append('content', data.content);
-      formData.append('lineId', data.lineId);
-
-      const result = await addNoteAction(formData);
-
-      if (result?.success && result.newNote) {
-        toast({ title: 'Sucesso!', description: 'Sua anotação foi salva.' });
-        // The parent component handles the replacement
-      } else {
-        const errorMsg = result.errors ? Object.values(result.errors).join(', ') : result.error;
-        toast({ title: 'Erro!', description: errorMsg || 'Falha ao salvar a anotação.', variant: 'destructive' });
-        // The parent component should handle the rollback
-      }
     });
+    setOpen(false);
+    toast({ title: 'Sucesso!', description: 'Sua anotação foi salva.' });
   };
 
   const handleGenerateTitle = () => {
