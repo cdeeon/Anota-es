@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import Header from '@/components/Header';
 
 export const metadata: Metadata = {
   title: 'ChronoFlow',
@@ -20,7 +21,12 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        {children}
+        <div className="min-h-screen" style={{ background: 'var(--background)' }}>
+          <div className="container mx-auto px-4 py-8">
+            <Header />
+            {children}
+          </div>
+        </div>
         <Toaster />
       </body>
     </html>

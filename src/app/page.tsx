@@ -1,7 +1,6 @@
 import { collection, getDocs, orderBy, query, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Timeline, Note, TimelineHydrated, NoteHydrated } from '@/lib/types';
-import Header from '@/components/Header';
 import ChronoFlowApp from '@/components/ChronoFlowApp';
 
 async function getTimelines(): Promise<TimelineHydrated[]> {
@@ -55,11 +54,6 @@ export default async function Home() {
   const notes = await getNotes();
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--background)' }}>
-        <div className="container mx-auto px-4 py-8">
-            <Header />
-            <ChronoFlowApp initialTimelines={timelines} initialNotes={notes} />
-        </div>
-    </div>
+    <ChronoFlowApp initialTimelines={timelines} initialNotes={notes} />
   );
 }
