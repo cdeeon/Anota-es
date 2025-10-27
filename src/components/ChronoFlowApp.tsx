@@ -51,6 +51,7 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
          setTimelines(currentTimelines => 
             currentTimelines.map(t => t.id === optimisticId ? result.newTimeline! : t)
          );
+         toast({ title: 'Sucesso!', description: 'Nova linha adicionada.' });
       } else {
         setTimelines(currentTimelines => currentTimelines.filter(t => t.id !== optimisticId));
         toast({
