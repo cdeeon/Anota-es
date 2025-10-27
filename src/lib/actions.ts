@@ -63,6 +63,9 @@ export async function addNoteAction(formData: FormData) {
             createdAt: serverTimestamp(),
         });
         
+        revalidatePath('/');
+
+        // We get the new note to return to the client for optimistic updates
         const newDoc = await getDoc(docRef);
         const data = newDoc.data() as Note;
         const createdAt = data.createdAt as Timestamp;
@@ -75,7 +78,6 @@ export async function addNoteAction(formData: FormData) {
             createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
         };
         
-        revalidatePath('/');
         return { success: true, newNote };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
