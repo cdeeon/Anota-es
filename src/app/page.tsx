@@ -2,6 +2,7 @@ import { collection, getDocs, orderBy, query, Timestamp, where } from 'firebase/
 import { db } from '@/lib/firebase';
 import type { Timeline, Note, TimelineHydrated, NoteHydrated } from '@/lib/types';
 import ChronoFlowApp from '@/components/ChronoFlowApp';
+import Header from '@/components/Header';
 
 async function getTimelines(): Promise<TimelineHydrated[]> {
   try {
@@ -52,13 +53,14 @@ async function getNotes(status: 'published' | 'draft' = 'published'): Promise<No
 export default async function Home() {
   const timelines = await getTimelines();
   const publishedNotes = await getNotes('published');
-  const draftNotes = await getNotes('draft');
 
   return (
-    <ChronoFlowApp 
-      initialTimelines={timelines} 
-      initialNotes={publishedNotes}
-      initialDrafts={draftNotes} 
-    />
+    <>
+      <Header />
+      <ChronoFlowApp 
+        initialTimelines={timelines} 
+        initialNotes={publishedNotes}
+      />
+    </>
   );
 }

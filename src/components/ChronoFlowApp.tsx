@@ -8,15 +8,14 @@ import { Plus, Loader2 } from 'lucide-react';
 import AddNoteDialog from './AddNoteDialog';
 import TimelineLane from './TimelineLane';
 import { useToast } from "@/hooks/use-toast";
-import Sidebar from './Sidebar';
+import Header from './Header';
 
 interface ChronoFlowAppProps {
   initialTimelines: TimelineHydrated[];
   initialNotes: NoteHydrated[];
-  initialDrafts: NoteHydrated[];
 }
 
-export default function ChronoFlowApp({ initialTimelines, initialNotes, initialDrafts }: ChronoFlowAppProps) {
+export default function ChronoFlowApp({ initialTimelines, initialNotes }: ChronoFlowAppProps) {
   const [isAddingTimeline, startTimelineTransition] = useTransition();
   const [isAddingNote, startNoteTransition] = useTransition();
   const [isDialogOpen, setDialogOpen] = useState(false);
@@ -24,7 +23,6 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes, initialD
 
   const [timelines, setTimelines] = useState<TimelineHydrated[]>(initialTimelines);
   const [notes, setNotes] = useState<NoteHydrated[]>(initialNotes);
-  const [drafts, setDrafts] = useState<NoteHydrated[]>(initialDrafts);
   
   useEffect(() => {
     setTimelines(initialTimelines);
@@ -34,14 +32,10 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes, initialD
     setNotes(initialNotes);
   }, [initialNotes]);
 
-  useEffect(() => {
-    setDrafts(initialDrafts);
-  }, [initialDrafts]);
 
   const handleAddTimeline = () => {
     startTimelineTransition(async () => {
       const result = await addTimelineAction();
-
       if (result?.success) {
          toast({ title: 'Sucesso!', description: 'Nova linha adicionada. A página será atualizada.' });
       } else {
@@ -81,9 +75,7 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes, initialD
   };
 
   return (
-    <div className="flex">
-      <Sidebar drafts={drafts} />
-      <main className="flex-1">
+    <main>
         <div className="flex justify-center gap-4 mb-10">
           <Button onClick={handleAddTimeline} disabled={isAddingTimeline} className="shadow-lg" size="lg">
             {isAddingTimeline ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
@@ -121,7 +113,6 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes, initialD
           onNoteAdded={handleNoteAdded}
           isSaving={isAddingNote}
         />
-      </main>
-    </div>
+    </main>
   );
 }
