@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useEffect } from 'react';
 import { addTimelineAction } from '@/lib/actions';
 import type { TimelineHydrated, NoteHydrated } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -19,10 +19,39 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
   const [isDialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
 
+  const [timelines, setTimelines] = useState<TimelineHydrated[]>(initialTimelines);
+  const [notes, setNotes] = useState<NoteHydrated[]>(initialNotes);
+  
+  useEffect(() => {
+    setTimelines(initialTimelines);
+  }, [initialTimelines]);
+
+  useEffect(() => {
+    setNotes(initialNotes);
+  }, [initialNotes]);
+
+
   const handleAddTimeline = () => {
+    const nextNumber = timelines.length > 0 ? Math.max(...timelines.map(t => t.number)) + 1 : 1;
+    
+    // Optimistic UI update
+    const optimisticTimeline: TimelineHydrated = {
+      id: `optimistic-${Date.now()}`,
+      number: nextNumber,
+      createdAt: new Date().toISOString(),
+    };
+    setTimelines(currentTimelines => [...currentTimelines, optimisticTimeline]);
+
     startTransition(async () => {
       const result = await addTimelineAction();
-      if (result?.error) {
+      if (result?.success && result.newTimeline) {
+         // Replace optimistic with real data
+         setTimelines(currentTimelines => 
+            currentTimelines.map(t => t.id === optimisticTimeline.id ? result.newTimeline! : t)
+         );
+      } else {
+        // Rollback on error
+        setTimelines(currentTimelines => currentTimelines.filter(t => t.id !== optimisticTimeline.id));
         toast({
           title: "Erro",
           description: result.error,
@@ -33,7 +62,7 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
   };
 
   const handleOpenDialog = () => {
-    if (initialTimelines.length === 0) {
+    if (timelines.length === 0) {
       toast({
         title: "Atenção",
         description: "Adicione pelo menos uma linha do tempo primeiro!",
@@ -44,6 +73,10 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
     setDialogOpen(true);
   };
   
+  const onNoteAdded = (newNote: NoteHydrated) => {
+    setNotes(currentNotes => [...currentNotes, newNote]);
+  }
+
   return (
     <>
       <div className="flex justify-center gap-4 mb-10">
@@ -59,12 +92,12 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
 
       <main className="bg-card/60 dark:bg-card/30 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-2xl shadow-xl min-h-[60vh]">
         <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 snap-x snap-mandatory">
-          {initialTimelines.length > 0 ? (
-            initialTimelines.map(timeline => (
+          {timelines.length > 0 ? (
+            timelines.map(timeline => (
               <TimelineLane
                 key={timeline.id}
                 timeline={timeline}
-                notes={initialNotes.filter(note => note.lineId === timeline.id)}
+                notes={notes.filter(note => note.lineId === timeline.id)}
               />
             ))
           ) : (
@@ -79,7 +112,8 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
       <AddNoteDialog
         isOpen={isDialogOpen}
         setOpen={setDialogOpen}
-        timelines={initialTimelines}
+        timelines={timelines}
+        onNoteAdded={onNoteAdded}
       />
     </>
   );

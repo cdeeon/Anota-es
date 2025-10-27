@@ -2,9 +2,11 @@
 
 import { db } from '@/lib/firebase';
 import { generateNoteTitle } from '@/ai/flows/generate-note-title';
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, getDoc, doc, Timestamp } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import type { Note, Timeline, TimelineHydrated, NoteHydrated } from './types';
+
 
 export async function addTimelineAction() {
   try {
@@ -14,12 +16,25 @@ export async function addTimelineAction() {
     const lastTimeline = querySnapshot.docs[0]?.data();
     const newNumber = lastTimeline ? lastTimeline.number + 1 : 1;
 
-    await addDoc(timelinesCollection, {
+    const docRef = await addDoc(timelinesCollection, {
       number: newNumber,
       createdAt: serverTimestamp(),
     });
+    
+    // To avoid waiting for serverTimestamp, we fetch the doc again.
+    // In a real app, you might get this from a client-side listener for better UX.
+    const newDoc = await getDoc(docRef);
+    const data = newDoc.data() as Timeline;
+    const createdAt = data.createdAt as Timestamp;
+    
+    const newTimeline: TimelineHydrated = {
+        ...data,
+        id: newDoc.id,
+        createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
+    };
+
     revalidatePath('/');
-    return { success: true };
+    return { success: true, newTimeline };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     console.error('Error adding timeline:', errorMessage);
@@ -50,14 +65,25 @@ export async function addNoteAction(formData: FormData) {
     const { title, content, lineId } = validatedFields.data;
 
     try {
-        await addDoc(collection(db, 'notes'), {
+        const docRef = await addDoc(collection(db, 'notes'), {
             title,
             content,
             lineId,
             createdAt: serverTimestamp(),
         });
+
+        const newDoc = await getDoc(docRef);
+        const data = newDoc.data() as Note;
+        const createdAt = data.createdAt as Timestamp;
+
+        const newNote: NoteHydrated = {
+            ...data,
+            id: newDoc.id,
+            createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
+        };
+
         revalidatePath('/');
-        return { success: true };
+        return { success: true, newNote };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
         console.error('Error adding note:', errorMessage);

@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
 import { addNoteAction, generateTitleAction } from '@/lib/actions';
-import type { TimelineHydrated } from '@/lib/types';
+import type { TimelineHydrated, NoteHydrated } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ interface AddNoteDialogProps {
   isOpen: boolean;
   setOpen: (open: boolean) => void;
   timelines: TimelineHydrated[];
+  onNoteAdded: (note: NoteHydrated) => void;
 }
 
 const noteFormSchema = z.object({
@@ -30,7 +31,7 @@ const noteFormSchema = z.object({
 
 type NoteFormValues = z.infer<typeof noteFormSchema>;
 
-export default function AddNoteDialog({ isOpen, setOpen, timelines }: AddNoteDialogProps) {
+export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded }: AddNoteDialogProps) {
   const [isPending, startTransition] = useTransition();
   const [isGeneratingTitle, startTitleGeneration] = useTransition();
   const { toast } = useToast();
@@ -56,6 +57,17 @@ export default function AddNoteDialog({ isOpen, setOpen, timelines }: AddNoteDia
   
   const onSubmit = (data: NoteFormValues) => {
     startTransition(async () => {
+      // Optimistic UI update
+      const optimisticNote: NoteHydrated = {
+        id: `optimistic-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        title: data.title,
+        content: data.content,
+        lineId: data.lineId,
+      };
+      onNoteAdded(optimisticNote);
+      setOpen(false);
+
       const formData = new FormData();
       formData.append('title', data.title);
       formData.append('content', data.content);
@@ -63,12 +75,15 @@ export default function AddNoteDialog({ isOpen, setOpen, timelines }: AddNoteDia
 
       const result = await addNoteAction(formData);
 
-      if (result?.success) {
+      if (result?.success && result.newNote) {
         toast({ title: 'Sucesso!', description: 'Sua anotação foi salva.' });
-        setOpen(false);
+        // No need to replace optimistic note if IDs are not used for keys immediately,
+        // but if they were, we would update the state with the real ID here.
+        // For now, full page reload will fix it, or we can enhance it later.
       } else {
         const errorMsg = result.errors ? Object.values(result.errors).join(', ') : result.error;
         toast({ title: 'Erro!', description: errorMsg || 'Falha ao salvar a anotação.', variant: 'destructive' });
+        // Rollback would be needed here if we don't reload
       }
     });
   };
