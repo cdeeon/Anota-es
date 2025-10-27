@@ -76,6 +76,13 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
   const onNoteAdded = (newNote: NoteHydrated) => {
     setNotes(currentNotes => [...currentNotes, newNote]);
   }
+  
+  const onNoteSaved = (savedNote: NoteHydrated) => {
+    setNotes(currentNotes =>
+      currentNotes.map(n => n.id === savedNote.id ? { ...n, ...savedNote, id: savedNote.id } : n)
+    );
+  };
+
 
   return (
     <>
@@ -114,6 +121,7 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
         setOpen={setDialogOpen}
         timelines={timelines}
         onNoteAdded={onNoteAdded}
+        onNoteSaved={onNoteSaved}
       />
     </>
   );

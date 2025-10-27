@@ -72,14 +72,12 @@ export async function addNoteAction(formData: FormData) {
             createdAt: serverTimestamp(),
         });
 
-        const newDoc = await getDoc(docRef);
-        const data = newDoc.data() as Note;
-        const createdAt = data.createdAt as Timestamp;
-
         const newNote: NoteHydrated = {
-            ...data,
-            id: newDoc.id,
-            createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
+            id: docRef.id,
+            title,
+            content,
+            lineId,
+            createdAt: new Date().toISOString(), // Use client-side timestamp for optimistic response
         };
 
         revalidatePath('/');
