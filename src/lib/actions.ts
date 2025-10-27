@@ -31,7 +31,6 @@ export async function addTimelineAction() {
         createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
     };
 
-    // revalidatePath('/'); // Removido para melhorar a performance
     return { success: true, newTimeline };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
@@ -82,7 +81,6 @@ export async function addNoteAction(formData: FormData) {
             createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
         };
 
-        // revalidatePath('/'); // Removido para melhorar a performance
         return { success: true, newNote };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
