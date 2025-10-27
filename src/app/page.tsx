@@ -53,6 +53,7 @@ async function getNotes(status: 'published' | 'draft' = 'published'): Promise<No
 export default async function Home() {
   const timelines = await getTimelines();
   const publishedNotes = await getNotes('published');
+  const draftNotes = await getNotes('draft');
 
   return (
     <>
@@ -60,6 +61,7 @@ export default async function Home() {
       <ChronoFlowApp 
         initialTimelines={timelines} 
         initialNotes={publishedNotes}
+        initialDrafts={draftNotes}
       />
     </>
   );

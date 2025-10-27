@@ -8,14 +8,15 @@ import { Plus, Loader2 } from 'lucide-react';
 import AddNoteDialog from './AddNoteDialog';
 import TimelineLane from './TimelineLane';
 import { useToast } from "@/hooks/use-toast";
-import Header from './Header';
+import Sidebar from './Sidebar';
 
 interface ChronoFlowAppProps {
   initialTimelines: TimelineHydrated[];
   initialNotes: NoteHydrated[];
+  initialDrafts: NoteHydrated[];
 }
 
-export default function ChronoFlowApp({ initialTimelines, initialNotes }: ChronoFlowAppProps) {
+export default function ChronoFlowApp({ initialTimelines, initialNotes, initialDrafts }: ChronoFlowAppProps) {
   const [isAddingTimeline, startTimelineTransition] = useTransition();
   const [isAddingNote, startNoteTransition] = useTransition();
   const [isDialogOpen, setDialogOpen] = useState(false);
@@ -23,6 +24,7 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
 
   const [timelines, setTimelines] = useState<TimelineHydrated[]>(initialTimelines);
   const [notes, setNotes] = useState<NoteHydrated[]>(initialNotes);
+  const [drafts, setDrafts] = useState<NoteHydrated[]>(initialDrafts);
   
   useEffect(() => {
     setTimelines(initialTimelines);
@@ -32,12 +34,16 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
     setNotes(initialNotes);
   }, [initialNotes]);
 
+  useEffect(() => {
+    setDrafts(initialDrafts);
+  }, [initialDrafts]);
+
 
   const handleAddTimeline = () => {
     startTimelineTransition(async () => {
       const result = await addTimelineAction();
       if (result?.success) {
-         toast({ title: 'Sucesso!', description: 'Nova linha adicionada. A página será atualizada.' });
+         toast({ title: 'Sucesso!', description: 'Nova linha adicionada.' });
       } else {
         toast({
           title: "Erro",
@@ -76,6 +82,7 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
 
   return (
     <main>
+        <Sidebar drafts={drafts} />
         <div className="flex justify-center gap-4 mb-10">
           <Button onClick={handleAddTimeline} disabled={isAddingTimeline} className="shadow-lg" size="lg">
             {isAddingTimeline ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}

@@ -20,7 +20,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
-        <div className="min-h-screen" style={{ background: 'var(--background)' }}>
+        <div className="min-h-screen bg-background">
           <div className="container mx-auto px-4 py-8">
             {children}
           </div>
