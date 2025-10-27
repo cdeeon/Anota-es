@@ -12,6 +12,7 @@ export interface Note {
   title: string;
   content: string;
   createdAt: Timestamp;
+  status: 'published' | 'draft';
 }
 
 // For client-side usage, where Timestamps are serialized
@@ -22,5 +23,5 @@ export interface TimelineHydrated extends Omit<Timeline, 'createdAt' | 'id'> {
 
 export interface NoteHydrated extends Omit<Note, 'createdAt' | 'id'> {
   id: string;
-  createdAt: string;
+  status: 'published' | 'draft';
 }

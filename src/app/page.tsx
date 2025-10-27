@@ -1,4 +1,4 @@
-import { collection, getDocs, orderBy, query, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, Timestamp, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Timeline, Note, TimelineHydrated, NoteHydrated } from '@/lib/types';
 import ChronoFlowApp from '@/components/ChronoFlowApp';
@@ -29,7 +29,7 @@ async function getTimelines(): Promise<TimelineHydrated[]> {
 async function getNotes(): Promise<NoteHydrated[]> {
   try {
     const notesCollection = collection(db, 'notes');
-    const q = query(notesCollection, orderBy('createdAt', 'asc'));
+    const q = query(notesCollection, where('status', '==', 'published'), orderBy('createdAt', 'asc'));
     const snapshot = await getDocs(q);
     if (snapshot.empty) {
       return [];

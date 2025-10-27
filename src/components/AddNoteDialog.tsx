@@ -1,10 +1,10 @@
 'use client';
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
-import { generateTitleAction } from '@/lib/actions';
+import { generateTitleAction, saveNoteDraftAction } from '@/lib/actions';
 import type { TimelineHydrated, NoteHydrated } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,7 +20,7 @@ interface AddNoteDialogProps {
   isOpen: boolean;
   setOpen: (open: boolean) => void;
   timelines: TimelineHydrated[];
-  onNoteAdded: (note: Omit<NoteHydrated, 'id' | 'createdAt'>) => void;
+  onNoteAdded: (formData: FormData) => void;
   isSaving: boolean;
 }
 
@@ -28,39 +28,96 @@ const noteFormSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório.'),
   content: z.string().min(1, 'Conteúdo é obrigatório.'),
   lineId: z.string({ required_error: 'Selecione uma linha do tempo.' }),
+  draftId: z.string().optional(),
 });
 
 export type NoteFormValues = z.infer<typeof noteFormSchema>;
 
+const AUTOSAVE_INTERVAL = 5 * 60 * 1000; // 5 minutos
+
 export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded, isSaving }: AddNoteDialogProps) {
   const [isGeneratingTitle, startTitleGeneration] = useTransition();
   const { toast } = useToast();
+  const [draftId, setDraftId] = useState<string | undefined>();
+  const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
 
   const form = useForm<NoteFormValues>({
     resolver: zodResolver(noteFormSchema),
     defaultValues: {
       title: '',
       content: '',
-      lineId: timelines[0]?.id || ''
+      lineId: timelines[0]?.id || '',
+      draftId: undefined,
     },
   });
+
+  const handleAutoSave = async () => {
+    const data = form.getValues();
+    if (!data.content && !data.title) return; // Não salvar rascunho vazio
+
+    const formData = new FormData();
+    formData.append('title', data.title);
+    formData.append('content', data.content);
+    formData.append('lineId', data.lineId);
+    if (draftId) {
+      formData.append('draftId', draftId);
+    }
+
+    const result = await saveNoteDraftAction(formData);
+
+    if (result.success && result.draftId) {
+      setDraftId(result.draftId);
+      form.setValue('draftId', result.draftId); // Atualiza o form com o ID do rascunho
+      toast({
+        title: 'Rascunho salvo!',
+        description: 'Sua anotação foi salva como rascunho.',
+      });
+    } else {
+      toast({
+        title: 'Erro ao salvar rascunho',
+        description: result.error || 'Não foi possível salvar seu rascunho.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
       form.reset({
         title: '',
         content: '',
-        lineId: timelines.length > 0 ? timelines[0].id : ''
+        lineId: timelines.length > 0 ? timelines[0].id : '',
+        draftId: undefined,
       });
+      setDraftId(undefined); // Limpa o ID do rascunho ao abrir o diálogo
+
+       // Inicia o timer para auto-salvar
+      autoSaveTimer.current = setInterval(handleAutoSave, AUTOSAVE_INTERVAL);
+
+    } else {
+       // Limpa o timer quando o diálogo é fechado
+       if (autoSaveTimer.current) {
+        clearInterval(autoSaveTimer.current);
+        autoSaveTimer.current = null;
+      }
     }
+    // Função de limpeza para garantir que o timer seja destruído
+    return () => {
+      if (autoSaveTimer.current) {
+        clearInterval(autoSaveTimer.current);
+      }
+    };
   }, [isOpen, form, timelines]);
-  
+
   const onSubmit = (data: NoteFormValues) => {
-    onNoteAdded({
-      title: data.title,
-      content: data.content,
-      lineId: data.lineId,
-    });
+    const formData = new FormData();
+    formData.append('title', data.title);
+    formData.append('content', data.content);
+    formData.append('lineId', data.lineId);
+    if (data.draftId) {
+      formData.append('draftId', data.draftId);
+    }
+    onNoteAdded(formData);
     setOpen(false);
   };
 
@@ -83,32 +140,32 @@ export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded,
 
   const insertMedia = (type: 'image' | 'video' | 'link') => {
     let html = '';
-    switch(type) {
-        case 'image':
-            const imageUrl = prompt('Digite a URL da imagem:');
-            if (imageUrl) html = `<img src="${imageUrl}" alt="Imagem">`;
-            break;
-        case 'video':
-            const videoUrl = prompt('Digite a URL do vídeo (YouTube/Vimeo):');
-            if (videoUrl) {
-                const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
-                const match = videoUrl.match(youtubeRegex);
-                if (match && match[1]) {
-                    html = `<iframe width="100%" style="aspect-ratio: 16/9;" src="https://www.youtube.com/embed/${match[1]}" frameborder="0" allowfullscreen></iframe>`;
-                } else {
-                    html = `<video src="${videoUrl}" controls style="width: 100%;"></video>`;
-                }
-            }
-            break;
-        case 'link':
-            const linkUrl = prompt('Digite a URL:');
-            const linkText = prompt('Digite o texto do link (opcional):');
-            if (linkUrl) html = `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer">${linkText || linkUrl}</a>`;
-            break;
+    switch (type) {
+      case 'image':
+        const imageUrl = prompt('Digite a URL da imagem:');
+        if (imageUrl) html = `<img src="${imageUrl}" alt="Imagem">`;
+        break;
+      case 'video':
+        const videoUrl = prompt('Digite a URL do vídeo (YouTube/Vimeo):');
+        if (videoUrl) {
+          const youtubeRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
+          const match = videoUrl.match(youtubeRegex);
+          if (match && match[1]) {
+            html = `<iframe width="100%" style="aspect-ratio: 16/9;" src="https://www.youtube.com/embed/${match[1]}" frameborder="0" allowfullscreen></iframe>`;
+          } else {
+            html = `<video src="${videoUrl}" controls style="width: 100%;"></video>`;
+          }
+        }
+        break;
+      case 'link':
+        const linkUrl = prompt('Digite a URL:');
+        const linkText = prompt('Digite o texto do link (opcional):');
+        if (linkUrl) html = `<a href="${linkUrl}" target="_blank" rel="noopener noreferrer">${linkText || linkUrl}</a>`;
+        break;
     }
     if (html) {
-        const currentContent = form.getValues('content');
-        form.setValue('content', (currentContent ? currentContent + '\n\n' : '') + html, { shouldValidate: true });
+      const currentContent = form.getValues('content');
+      form.setValue('content', (currentContent ? currentContent + '\n\n' : '') + html, { shouldValidate: true });
     }
   };
 
@@ -155,7 +212,7 @@ export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded,
                       <Input placeholder="Título da sua anotação..." {...field} />
                     </FormControl>
                     <Button type="button" variant="outline" size="icon" onClick={handleGenerateTitle} disabled={isGeneratingTitle} aria-label="Gerar Título com IA">
-                        {isGeneratingTitle ? <Loader2 className="animate-spin" /> : <Wand2 />}
+                      {isGeneratingTitle ? <Loader2 className="animate-spin" /> : <Wand2 />}
                     </Button>
                   </div>
                   <FormMessage />
@@ -168,11 +225,11 @@ export default function AddNoteDialog({ isOpen, setOpen, timelines, onNoteAdded,
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Conteúdo</FormLabel>
-                   <div className="flex items-center gap-1 rounded-md border bg-transparent p-1">
-                      <Button type="button" variant="ghost" size="sm" onClick={() => insertMedia('image')}><ImageIcon className="mr-2 h-4 w-4"/> Imagem</Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => insertMedia('video')}><Video className="mr-2 h-4 w-4"/> Vídeo</Button>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => insertMedia('link')}><LinkIcon className="mr-2 h-4 w-4"/> Link</Button>
-                   </div>
+                  <div className="flex items-center gap-1 rounded-md border bg-transparent p-1">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => insertMedia('image')}><ImageIcon className="mr-2 h-4 w-4" /> Imagem</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => insertMedia('video')}><Video className="mr-2 h-4 w-4" /> Vídeo</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => insertMedia('link')}><LinkIcon className="mr-2 h-4 w-4" /> Link</Button>
+                  </div>
                   <FormControl>
                     <Textarea placeholder="Escreva sua anotação aqui. Você pode adicionar imagens, vídeos e links." className="min-h-[150px] resize-y" {...field} />
                   </FormControl>

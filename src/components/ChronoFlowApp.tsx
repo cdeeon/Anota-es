@@ -37,7 +37,7 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
       const result = await addTimelineAction();
 
       if (result?.success) {
-         toast({ title: 'Sucesso!', description: 'Nova linha adicionada.' });
+         toast({ title: 'Sucesso!', description: 'Nova linha adicionada. A página será atualizada.' });
       } else {
         toast({
           title: "Erro",
@@ -60,32 +60,15 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
     setDialogOpen(true);
   };
   
-  const handleNoteAdded = (noteData: Omit<NoteHydrated, 'id' | 'createdAt'>) => {
+  const handleNoteAdded = (formData: FormData) => {
     startNoteTransition(async () => {
-      const optimisticId = `optimistic-note-${Date.now()}`;
-      const optimisticNote: NoteHydrated = {
-        id: optimisticId,
-        createdAt: new Date().toISOString(),
-        ...noteData,
-      };
-      
-      setNotes(currentNotes => [...currentNotes, optimisticNote]);
       setDialogOpen(false);
-
-      const formData = new FormData();
-      formData.append('title', noteData.title);
-      formData.append('content', noteData.content);
-      formData.append('lineId', noteData.lineId);
 
       const result = await addNoteAction(formData);
 
       if (result.success && result.newNote) {
-        setNotes(currentNotes =>
-          currentNotes.map(n => (n.id === optimisticId ? result.newNote! : n))
-        );
          toast({ title: 'Sucesso!', description: 'Sua anotação foi salva.' });
       } else {
-        setNotes(currentNotes => currentNotes.filter(n => n.id !== optimisticId));
         const errorMsg = result.errors ? Object.values(result.errors).join(', ') : result.error;
         toast({ title: 'Erro!', description: errorMsg || 'Falha ao salvar a anotação.', variant: 'destructive' });
       }
