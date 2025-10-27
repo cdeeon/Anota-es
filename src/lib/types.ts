@@ -7,7 +7,7 @@ export interface Timeline {
 }
 
 export interface Note {
-  id: string;
+  id:string;
   lineId: string;
   title: string;
   content: string;
@@ -23,5 +23,6 @@ export interface TimelineHydrated extends Omit<Timeline, 'createdAt' | 'id'> {
 
 export interface NoteHydrated extends Omit<Note, 'createdAt' | 'id'> {
   id: string;
+  createdAt: string;
   status: 'published' | 'draft';
 }

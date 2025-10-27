@@ -26,10 +26,10 @@ async function getTimelines(): Promise<TimelineHydrated[]> {
   }
 }
 
-async function getNotes(): Promise<NoteHydrated[]> {
+async function getNotes(status: 'published' | 'draft' = 'published'): Promise<NoteHydrated[]> {
   try {
     const notesCollection = collection(db, 'notes');
-    const q = query(notesCollection, where('status', '==', 'published'), orderBy('createdAt', 'asc'));
+    const q = query(notesCollection, where('status', '==', status), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     if (snapshot.empty) {
       return [];
@@ -44,16 +44,21 @@ async function getNotes(): Promise<NoteHydrated[]> {
       };
     });
   } catch (error) {
-    console.error("Failed to fetch notes:", error);
+    console.error(`Failed to fetch ${status} notes:`, error);
     return [];
   }
 }
 
 export default async function Home() {
   const timelines = await getTimelines();
-  const notes = await getNotes();
+  const publishedNotes = await getNotes('published');
+  const draftNotes = await getNotes('draft');
 
   return (
-    <ChronoFlowApp initialTimelines={timelines} initialNotes={notes} />
+    <ChronoFlowApp 
+      initialTimelines={timelines} 
+      initialNotes={publishedNotes}
+      initialDrafts={draftNotes} 
+    />
   );
 }
