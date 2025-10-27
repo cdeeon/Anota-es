@@ -8,7 +8,7 @@ import { z } from 'zod';
 import type { Note, Timeline, TimelineHydrated, NoteHydrated } from './types';
 
 
-export async function addTimelineAction() {
+export async function addTimelineAction(): Promise<{ success: boolean; newTimeline?: TimelineHydrated; error?: string }> {
   try {
     const timelinesCollection = collection(db, 'timelines');
     const q = query(timelinesCollection, orderBy('number', 'desc'));
@@ -24,14 +24,20 @@ export async function addTimelineAction() {
 
     const docRef = await addDoc(timelinesCollection, newTimelineData);
     
+    // Fetch the just-created document to get the server-generated timestamp
     const newDoc = await getDoc(docRef);
-    const data = newDoc.data();
-    const createdAt = data!.createdAt as Timestamp;
+    if (!newDoc.exists()) {
+        throw new Error("Failed to retrieve new timeline document.");
+    }
     
+    const data = newDoc.data();
+    const serverTimestampValue = data.createdAt as Timestamp;
+    
+    // Convert the Firebase Timestamp to a simple ISO string for the client
     const newTimeline: TimelineHydrated = {
-        number: data!.number,
         id: newDoc.id,
-        createdAt: createdAt ? createdAt.toDate().toISOString() : new Date().toISOString(),
+        number: data.number,
+        createdAt: serverTimestampValue.toDate().toISOString(),
     };
 
     revalidatePath('/');

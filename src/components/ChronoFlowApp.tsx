@@ -34,27 +34,14 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
 
   const handleAddTimeline = () => {
     startTimelineTransition(async () => {
-      const nextNumber = timelines.length > 0 ? Math.max(...timelines.map(t => t.number)) + 1 : 1;
-      
-      const optimisticId = `optimistic-timeline-${Date.now()}`;
-      const optimisticTimeline: TimelineHydrated = {
-        id: optimisticId,
-        number: nextNumber,
-        createdAt: new Date().toISOString(),
-      };
-      
-      setTimelines(currentTimelines => [...currentTimelines, optimisticTimeline].sort((a, b) => a.number - b.number));
-
       const result = await addTimelineAction();
 
       if (result?.success && result.newTimeline) {
-         setTimelines(currentTimelines => {
-            const newTimelines = currentTimelines.map(t => t.id === optimisticId ? result.newTimeline! : t);
-            return newTimelines.sort((a, b) => a.number - b.number);
-         });
+         setTimelines(currentTimelines => 
+            [...currentTimelines, result.newTimeline!].sort((a, b) => a.number - b.number)
+         );
          toast({ title: 'Sucesso!', description: 'Nova linha adicionada.' });
       } else {
-        setTimelines(currentTimelines => currentTimelines.filter(t => t.id !== optimisticId));
         toast({
           title: "Erro",
           description: result.error || "Falha ao adicionar linha.",
