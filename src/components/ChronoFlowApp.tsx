@@ -36,10 +36,7 @@ export default function ChronoFlowApp({ initialTimelines, initialNotes }: Chrono
     startTimelineTransition(async () => {
       const result = await addTimelineAction();
 
-      if (result?.success && result.newTimeline) {
-         setTimelines(currentTimelines => 
-            [...currentTimelines, result.newTimeline!].sort((a, b) => a.number - b.number)
-         );
+      if (result?.success) {
          toast({ title: 'Sucesso!', description: 'Nova linha adicionada.' });
       } else {
         toast({

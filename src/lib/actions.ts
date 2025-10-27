@@ -2,13 +2,13 @@
 
 import { db } from '@/lib/firebase';
 import { generateNoteTitle } from '@/ai/flows/generate-note-title';
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, getDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, getDoc, Timestamp } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { Note, Timeline, TimelineHydrated, NoteHydrated } from './types';
 
 
-export async function addTimelineAction(): Promise<{ success: boolean; newTimeline?: TimelineHydrated; error?: string }> {
+export async function addTimelineAction(): Promise<{ success: boolean; error?: string }> {
   try {
     const timelinesCollection = collection(db, 'timelines');
     const q = query(timelinesCollection, orderBy('number', 'desc'));
@@ -22,26 +22,10 @@ export async function addTimelineAction(): Promise<{ success: boolean; newTimeli
       createdAt: serverTimestamp(),
     };
 
-    const docRef = await addDoc(timelinesCollection, newTimelineData);
+    await addDoc(timelinesCollection, newTimelineData);
     
-    // Fetch the just-created document to get the server-generated timestamp
-    const newDoc = await getDoc(docRef);
-    if (!newDoc.exists()) {
-        throw new Error("Failed to retrieve new timeline document.");
-    }
-    
-    const data = newDoc.data();
-    const serverTimestampValue = data.createdAt as Timestamp;
-    
-    // Convert the Firebase Timestamp to a simple ISO string for the client
-    const newTimeline: TimelineHydrated = {
-        id: newDoc.id,
-        number: data.number,
-        createdAt: serverTimestampValue.toDate().toISOString(),
-    };
-
     revalidatePath('/');
-    return { success: true, newTimeline };
+    return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     console.error('Error adding timeline:', errorMessage);
